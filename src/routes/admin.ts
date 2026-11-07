@@ -16,7 +16,9 @@ router.use(requireAuth, requireAdmin);
 
 // ---- image upload (stored on local disk in ./uploads) ----
 const uploadDir = path.resolve("uploads");
-fs.mkdirSync(uploadDir, { recursive: true });
+// Serverless hosts (Vercel) have a read-only disk, so uploads are disabled there
+const uploadsEnabled = !process.env.VERCEL;
+if (uploadsEnabled) fs.mkdirSync(uploadDir, { recursive: true });
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -31,10 +33,20 @@ const upload = multer({
   },
 });
 
-router.post("/uploads", upload.single("image"), (req, res) => {
-  if (!req.file) throw new HttpError(400, "No file uploaded (field name: image)");
-  res.status(201).json({ url: `/uploads/${req.file.filename}` });
-});
+router.post(
+  "/uploads",
+  (_req, _res, next) => {
+    if (!uploadsEnabled) {
+      throw new HttpError(501, "Image upload is not available on this deployment. Use an image URL instead.");
+    }
+    next();
+  },
+  upload.single("image"),
+  (req, res) => {
+    if (!req.file) throw new HttpError(400, "No file uploaded (field name: image)");
+    res.status(201).json({ url: `/uploads/${req.file.filename}` });
+  }
+);
 
 // ---- products (includes inactive ones) ----
 router.get(

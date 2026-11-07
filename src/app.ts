@@ -15,11 +15,16 @@ import productsRouter from "./routes/products";
 import cartRouter from "./routes/cart";
 import ordersRouter from "./routes/orders";
 import adminRouter from "./routes/admin";
+import placeholdersRouter from "./routes/placeholders";
 import { openapi } from "./docs/openapi";
 
 const app = express();
 const uploadDir = path.resolve("uploads");
-fs.mkdirSync(uploadDir, { recursive: true });
+try {
+  fs.mkdirSync(uploadDir, { recursive: true });
+} catch {
+  // read-only filesystem (e.g. serverless hosting): uploads are disabled there
+}
 
 app.set("trust proxy", 1);
 
@@ -40,6 +45,7 @@ app.use(morgan(isProd ? "combined" : "dev"));
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 
+app.use("/uploads", placeholdersRouter);
 app.use("/uploads", express.static(uploadDir));
 
 app.get("/api/health", (_req, res) => {
